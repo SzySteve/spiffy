@@ -31,6 +31,12 @@ SONG_DATA_FIELDS = {
 use_cache = True
 
 """FILE IO"""
+def load_creds():
+    creds = {}
+    with open('creds.json') as data_file:    
+        creds = json.load(data_file)
+    #DO CRED RELATED STUFF
+
 # Load cached songs
 def load_cache():
     song_cache = {}
@@ -47,6 +53,8 @@ def write_cache(songs):
 def write_metrics(stats):
     with open('metrics.json', 'w') as outfile:
         json.dump(stats, outfile)
+
+
 
 #Compute stats for a season
 def compute_stats(season):

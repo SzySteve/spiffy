@@ -30,8 +30,25 @@ SONG_DATA_FIELDS = {
 
 use_cache = True
 
-song_cache = {}
+"""FILE IO"""
+# Load cached songs
+def load_cache():
+    song_cache = {}
+    with open('songCache.json') as data_file:    
+        song_cache = json.load(data_file)
+    return song_cache
 
+# Write songs to cache
+def write_cache(songs):
+    with open('songCache.json', 'w') as outfile:
+        json.dump(songs, outfile)
+
+# Write song metrics
+def write_metrics(stats):
+    with open('metrics.json', 'w') as outfile:
+        json.dump(stats, outfile)
+
+#Compute stats for a season
 def compute_stats(season):
     stats = {}
     for field in SONG_DATA_FIELDS:
@@ -47,10 +64,9 @@ def compute_stats(season):
 
     return stats
 
-if use_cache:
-    with open('songCache.json') as data_file:    
-        song_cache = json.load(data_file)
-else:
+#Fetch songs from remote API
+def fetch_songs():
+    songs = {}
     for season in PLAYLIST_IDS:
         print 'Fetching season playlist: ' + season
         playlist = spot.user_playlist_tracks(steve_spotify_id, PLAYLIST_IDS[season])
@@ -74,18 +90,23 @@ else:
             if results['songs']:
                 analyzed_tracks.append(results['songs'][0])
 
-        song_cache[season] = analyzed_tracks
+        songs[season] = analyzed_tracks
+    return songs
 
-    with open('songCache.json', 'w') as outfile:
-        json.dump(song_cache, outfile)
-    
-stats = {}
-for season in song_cache:
-    print 'Analyzing season: ' + season
-    stats[season] = compute_stats(song_cache[season])
-with open('metrics.json', 'w') as outfile:
-    json.dump(stats, outfile)
+def main():
+    songs = {}
+    if use_cache:
+        songs = load_cache()
+    else:
+        songs = fetch_songs()
+        write_cache(songs)
+    stats = {}
+    for season in songs:
+        print 'Analyzing season: ' + season
+        stats[season] = compute_stats(songs[season])
+    write_metrics(stats)
 
 
-
+if __name__ == "__main__":
+    main()
 

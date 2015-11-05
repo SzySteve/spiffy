@@ -2,13 +2,9 @@ import pyen
 from spotipy import client, util, oauth2
 import numpy
 import json
+import sys, random
 
 nest = pyen.Pyen('SKHFYAIUO1CEEL9A1')
-
-spotify_token = oauth2.SpotifyClientCredentials(client_id='9d21af84de0a41b28894a35af9533b2c',
-    client_secret='260ca31f34f24ca1805051944ab09246').get_access_token()
-
-spot = client.Spotify(spotify_token)
 
 steve_spotify_id = '1210159879'
 
@@ -16,7 +12,8 @@ PLAYLIST_IDS = {
     'fall': '4wm4J4d2cKeTTCJ4Mzz06M',
     'winter': '7EUoqdUjR91tMmp41nw7Y4',
     'spring': '0rmr2dJ3fuudkrXyIXZgIZ',
-    'summer': '3mpSb7dwheLtB6QdvIBV2m'
+    'summer': '3mpSb7dwheLtB6QdvIBV2m',
+    'rainy': '2u7t4X9wA2B493qQgR47aW'
 }
 
 SONG_DATA_FIELDS = {
@@ -25,7 +22,8 @@ SONG_DATA_FIELDS = {
     'loudness',
     'mode',
     'key',
-    'tempo'
+    'tempo',
+    'valence'
 }
 
 use_cache = True
@@ -55,7 +53,6 @@ def write_metrics(stats):
         json.dump(stats, outfile)
 
 
-
 #Compute stats for a season
 def compute_stats(season):
     stats = {}
@@ -73,7 +70,7 @@ def compute_stats(season):
     return stats
 
 #Fetch songs from remote API
-def fetch_songs():
+def fetch_song_data():
     songs = {}
     for season in PLAYLIST_IDS:
         print 'Fetching season playlist: ' + season
@@ -101,20 +98,94 @@ def fetch_songs():
         songs[season] = analyzed_tracks
     return songs
 
-def main():
+#Wire this up to a weather API
+def is_raining():
+    return False
+
+#Should have a dict of valid season values somewhere
+#Gonna hard code each seasonf or now because HACKDAYZ
+def get_seasonal_params(season, stats):
+    query = {}
+
+    season_stats = stats[season]
+    if season == 'fall' or season == 'winter':
+        query['max_energy'] = season_stats['energy']['mean'] + (season_stats['energy']['std'] / 2)
+        query['min_energy'] = season_stats['energy']['mean'] - season_stats['energy']['std']
+        query['max_valence'] = season_stats['valence']['mean'] + (season_stats['valence']['std'] / 2)
+        query['min_valence'] = season_stats['valence']['mean'] - season_stats['valence']['std']
+    elif season == 'spring' or season == 'summer':
+        query['max_energy'] = season_stats['energy']['mean'] + season_stats['energy']['std']
+        query['min_energy'] = season_stats['energy']['mean'] - (season_stats['energy']['std'] / 2)
+        query['max_valence'] = season_stats['valence']['mean'] + season_stats['valence']['std']
+        query['min_valence'] = season_stats['valence']['mean'] - (season_stats['valence']['std'] / 2)
+
+    return query
+
+
+
+def get_new_songs(season, stats):
+    count = 100
+    query = get_seasonal_params(season, stats)
+    # Ban christmas music
+    query['song_type'] = ['christmas:false', 'live:false']
+    # Hard code indie folk for now
+    query['style'] = ['indie folk', 'folk rock', 'folk-pop']
+    query['bucket'] = ['song_type']
+    query['sort'] = ['song_hotttnesss-desc']
+    query['results'] = count
+    query['start'] = 0
+
+    if is_raining():
+        query['max_tempo'] = stats['rainy']['tempo']['mean']
+        query['min_tempo'] = stats['rainy']['tempo']['mean'] - stats['rainy']['tempo']['std']
+    #Also decrease the valence and energy by the difference between seasonal mean and rainy mean
+    
+    new_songs = []
+
+    while 1:
+        songs = nest.get('song/search', query)['songs']
+        if len(songs) == 0:
+            break
+        # new_songs.extend(songs)
+        for song in songs:
+            new_songs.append(
+                {'artist': song['artist_name'],
+                'track': song['title']}
+            )
+        query['start'] = query['start'] + count
+    
+    return random.sample(new_songs, 30)
+
+def make_playlist(spot, songs, name):
+    playlist = spot.user_playlist_create(steve_spotify_id, name)
+    ids = []
+    for song in songs:
+        query = 'track:'+ song['track'] + ' artist:' + song['artist']
+        #lmao this is hideous
+        results = spot.search(query, 1, 0, 'track')['tracks']['items']
+        if(results):
+            ids.append(results[0]['id'])
+    spot.user_playlist_add_tracks(steve_spotify_id, playlist['id'], ids)
+
+
+def main(argv):
+    token = util.prompt_for_user_token(steve_spotify_id, 'playlist-modify-public')
+    spot = client.Spotify(token)
     songs = {}
     if use_cache:
         songs = load_cache()
     else:
-        songs = fetch_songs()
+        songs = fetch_song_data()
         write_cache(songs)
     stats = {}
     for season in songs:
         print 'Analyzing season: ' + season
         stats[season] = compute_stats(songs[season])
     write_metrics(stats)
+    new_songs = get_new_songs('winter', stats)
+    make_playlist(spot, new_songs, 'Spiffy: Winter Take 2')
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
 

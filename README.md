@@ -20,5 +20,6 @@ You need the following python packages
 * Tweak song selection for better results
   * Less duplicate artists
   * Figure out Echo Nest's genre/style distinction
+  * Allow users to exclude artists they dont like
 * Implement a weather API to determine if it is currently precipitating
 * Get a larger sample of music

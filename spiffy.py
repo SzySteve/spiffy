@@ -31,11 +31,6 @@ SONG_DATA_FIELDS = {
 use_cache = True
 
 """FILE IO"""
-def load_creds():
-    creds = {}
-    with open('creds.json') as data_file:    
-        creds = json.load(data_file)
-    #DO CRED RELATED STUFF
 
 # Load cached songs
 def load_cache():
@@ -105,7 +100,7 @@ def is_raining():
     return False
 
 #Should have a dict of valid season values somewhere
-#Gonna hard code each seasonf or now because HACKDAYZ
+#Gonna hard code each season for now because HACKDAYZ
 def get_seasonal_params(season, stats):
     query = {}
 
@@ -147,12 +142,13 @@ def get_new_songs_alt(season, stats):
 
     return random.sample(songs, 30)
 
+# Take songs from Echonest api, search for them in spotify to get their ID,
+# add to newly created playlist
 def make_playlist(spot, songs, name):
     playlist = spot.user_playlist_create(steve_spotify_id, name)
     ids = []
     for song in songs:
         query = 'track:'+ song['title'] + ' artist:' + song['artist_name']
-        #lmao this is hideous
         results = spot.search(query, 1, 0, 'track')['tracks']['items']
         if(results):
             ids.append(results[0]['id'])

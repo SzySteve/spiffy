@@ -2,9 +2,11 @@ import pyen
 from spotipy import client, util, oauth2
 import numpy
 import json
-import sys, random
+import sys, random, os
 
-nest = pyen.Pyen('SKHFYAIUO1CEEL9A1')
+nest_key = os.environ['ECHONEST_KEY']
+
+nest = pyen.Pyen(nest_key)
 
 steve_spotify_id = '1210159879'
 
@@ -124,25 +126,26 @@ def get_seasonal_params(season, stats):
 
 
 def get_new_songs(season, stats):
-    count = 100
+    count = 0
+    increment = 100
     query = get_seasonal_params(season, stats)
     # Ban christmas music
     query['song_type'] = ['christmas:false', 'live:false']
     # Hard code indie folk for now
-    query['style'] = ['indie folk', 'folk rock', 'folk-pop']
-    query['bucket'] = ['song_type']
+    query['style'] = ['indie folk', 'folk rock']
+    # query['bucket'] = ['song_type']
     query['sort'] = ['song_hotttnesss-desc']
-    query['results'] = count
-    query['start'] = 0
+    query['results'] = increment
+    query['start'] = count
 
     if is_raining():
         query['max_tempo'] = stats['rainy']['tempo']['mean']
         query['min_tempo'] = stats['rainy']['tempo']['mean'] - stats['rainy']['tempo']['std']
-    #Also decrease the valence and energy by the difference between seasonal mean and rainy mean
+    #Also decrease the valence and energy by something
     
     new_songs = []
 
-    while 1:
+    while count < 1000:
         songs = nest.get('song/search', query)['songs']
         if len(songs) == 0:
             break
@@ -152,9 +155,11 @@ def get_new_songs(season, stats):
                 {'artist': song['artist_name'],
                 'track': song['title']}
             )
-        query['start'] = query['start'] + count
+        count = count + increment
+        query['start'] = count
     
-    return random.sample(new_songs, 30)
+    # return random.sample(new_songs, 30)
+    return new_songs
 
 def make_playlist(spot, songs, name):
     playlist = spot.user_playlist_create(steve_spotify_id, name)
@@ -182,8 +187,9 @@ def main(argv):
         print 'Analyzing season: ' + season
         stats[season] = compute_stats(songs[season])
     write_metrics(stats)
-    new_songs = get_new_songs('winter', stats)
-    make_playlist(spot, new_songs, 'Spiffy: Winter Take 2')
+    new_songs = get_new_songs('summer', stats)
+    print new_songs
+    # make_playlist(spot, new_songs, 'Spiffy: Summer')
 
 
 if __name__ == "__main__":

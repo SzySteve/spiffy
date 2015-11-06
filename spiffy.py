@@ -31,12 +31,6 @@ SONG_DATA_FIELDS = {
 use_cache = True
 
 """FILE IO"""
-def load_creds():
-    creds = {}
-    with open('creds.json') as data_file:    
-        creds = json.load(data_file)
-    #DO CRED RELATED STUFF
-
 # Load cached songs
 def load_cache():
     song_cache = {}
@@ -54,6 +48,11 @@ def write_metrics(stats):
     with open('metrics.json', 'w') as outfile:
         json.dump(stats, outfile)
 
+def load_metrics():
+    stats = {}
+    with open('metrics.json') as data_file:    
+        stats = json.load(data_file)
+    return stats
 
 #Compute stats for a season
 def compute_stats(season):
@@ -128,7 +127,7 @@ def get_seasonal_params(season, stats):
 
     return query
 
-def get_new_songs_alt(season, stats):
+def get_new_songs(season, stats):
     query = {}
     query['genre'] = ['stomp and holler', 'indie folk']
     query['sort'] = ['hotttnesss-desc']
@@ -163,21 +162,20 @@ def main(argv):
     token = util.prompt_for_user_token(steve_spotify_id, 'playlist-modify-public')
     spot = client.Spotify(token)
     songs = {}
+    stats = {}
     if use_cache:
         songs = load_cache()
+        stats = load_metrics()
     else:
         songs = fetch_song_data()
         write_cache(songs)
-    stats = {}
-    for season in songs:
-        print 'Analyzing season: ' + season
-        stats[season] = compute_stats(songs[season])
-    write_metrics(stats)
+        for season in songs:
+            print 'Analyzing season: ' + season
+            stats[season] = compute_stats(songs[season])
+        write_metrics(stats)
 
-    new_songs = get_new_songs_alt('summer', stats)
+    new_songs = get_new_songs('summer', stats)
     make_playlist(spot, new_songs, 'Spiffy: Fall New')
-
 
 if __name__ == "__main__":
     main(sys.argv[1:])
-

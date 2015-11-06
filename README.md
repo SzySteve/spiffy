@@ -13,7 +13,7 @@ export ECHONEST_KEY='your-echonest-key'
 You need the following python packages
 * Pyen
 * Spotipy
-
+* numpy
 
 ##ToDo
 * Make this a web-facing application

@@ -1,5 +1,4 @@
 venv
 metrics.json
 songCache.json
-creds.json
 .cache-*

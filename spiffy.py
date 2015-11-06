@@ -121,6 +121,11 @@ def get_seasonal_params(season, stats):
         query['max_valence'] = season_stats['valence']['mean'] + season_stats['valence']['std']
         query['min_valence'] = season_stats['valence']['mean'] - (season_stats['valence']['std'] / 2)
 
+    if is_raining():
+        query['max_tempo'] = stats['rainy']['tempo']['mean']
+        query['min_tempo'] = stats['rainy']['tempo']['mean'] - stats['rainy']['tempo']['std']
+    #Also decrease the valence and energy by something
+
     return query
 
 def get_new_songs_alt(season, stats):

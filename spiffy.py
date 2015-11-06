@@ -123,49 +123,30 @@ def get_seasonal_params(season, stats):
 
     return query
 
-
-
-def get_new_songs(season, stats):
-    count = 0
-    increment = 100
-    query = get_seasonal_params(season, stats)
-    # Ban christmas music
-    query['song_type'] = ['christmas:false', 'live:false']
-    # Hard code indie folk for now
-    query['style'] = ['indie folk', 'folk rock']
-    # query['bucket'] = ['song_type']
-    query['sort'] = ['song_hotttnesss-desc']
-    query['results'] = increment
-    query['start'] = count
-
-    if is_raining():
-        query['max_tempo'] = stats['rainy']['tempo']['mean']
-        query['min_tempo'] = stats['rainy']['tempo']['mean'] - stats['rainy']['tempo']['std']
-    #Also decrease the valence and energy by something
+def get_new_songs_alt(season, stats):
+    query = {}
+    query['genre'] = ['stomp and holler', 'indie folk']
+    query['sort'] = ['hotttnesss-desc']
+    query['results'] = ['100']
+    # Get up to 200 artists. This is so messy
+    artists = nest.get('artist/search', query)['artists']
+    query['start'] = ['100']
+    artists.extend(nest.get('artist/search', query)['artists'])
     
-    new_songs = []
+    songs = []
+    song_query = get_seasonal_params(season, stats)
+    for artist in artists:
+        song_query['artist_id'] = artist['id']
+        song_query['results'] = ['10']
+        songs.extend(nest.get('song/search', song_query)['songs'])
 
-    while count < 1000:
-        songs = nest.get('song/search', query)['songs']
-        if len(songs) == 0:
-            break
-        # new_songs.extend(songs)
-        for song in songs:
-            new_songs.append(
-                {'artist': song['artist_name'],
-                'track': song['title']}
-            )
-        count = count + increment
-        query['start'] = count
-    
-    # return random.sample(new_songs, 30)
-    return new_songs
+    return random.sample(songs, 30)
 
 def make_playlist(spot, songs, name):
     playlist = spot.user_playlist_create(steve_spotify_id, name)
     ids = []
     for song in songs:
-        query = 'track:'+ song['track'] + ' artist:' + song['artist']
+        query = 'track:'+ song['title'] + ' artist:' + song['artist_name']
         #lmao this is hideous
         results = spot.search(query, 1, 0, 'track')['tracks']['items']
         if(results):
@@ -187,9 +168,9 @@ def main(argv):
         print 'Analyzing season: ' + season
         stats[season] = compute_stats(songs[season])
     write_metrics(stats)
-    new_songs = get_new_songs('summer', stats)
-    print new_songs
-    # make_playlist(spot, new_songs, 'Spiffy: Summer')
+
+    new_songs = get_new_songs_alt('summer', stats)
+    make_playlist(spot, new_songs, 'Spiffy: Fall New')
 
 
 if __name__ == "__main__":
